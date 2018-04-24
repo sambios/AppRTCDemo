@@ -10,23 +10,23 @@
 
 package org.webrtc.voiceengine;
 
-import org.webrtc.Logging;
-
 import android.annotation.TargetApi;
 import android.media.audiofx.AcousticEchoCanceler;
 import android.media.audiofx.AudioEffect;
 import android.media.audiofx.AudioEffect.Descriptor;
+import android.media.audiofx.AutomaticGainControl;
 import android.media.audiofx.NoiseSuppressor;
 import android.os.Build;
-
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import org.webrtc.Logging;
 
 // This class wraps control of three different platform effects. Supported
 // effects are: AcousticEchoCanceler (AEC) and NoiseSuppressor (NS).
 // Calling enable() will active all effects that are
 // supported by the device if the corresponding |shouldEnableXXX| member is set.
-class WebRtcAudioEffects {
+public class WebRtcAudioEffects {
   private static final boolean DEBUG = false;
 
   private static final String TAG = "WebRtcAudioEffects";
@@ -41,12 +41,12 @@ class WebRtcAudioEffects {
   // Contains the available effect descriptors returned from the
   // AudioEffect.getEffects() call. This result is cached to avoid doing the
   // slow OS call multiple times.
-  private static Descriptor[] cachedEffects = null;
+  private static @Nullable Descriptor[] cachedEffects = null;
 
   // Contains the audio effect objects. Created in enable() and destroyed
   // in release().
-  private AcousticEchoCanceler aec = null;
-  private NoiseSuppressor ns = null;
+  private @Nullable AcousticEchoCanceler aec = null;
+  private @Nullable NoiseSuppressor ns = null;
 
   // Affects the final state given to the setEnabled() method on each effect.
   // The default state is set to "disabled" but each effect can also be enabled
@@ -62,7 +62,7 @@ class WebRtcAudioEffects {
     // Note: we're using isAcousticEchoCancelerEffectAvailable() instead of
     // AcousticEchoCanceler.isAvailable() to avoid the expensive getEffects()
     // OS API call.
-    return WebRtcAudioUtils.runningOnJellyBeanOrHigher() && isAcousticEchoCancelerEffectAvailable();
+    return isAcousticEchoCancelerEffectAvailable();
   }
 
   // Checks if the device implements Noise Suppression (NS).
@@ -71,7 +71,7 @@ class WebRtcAudioEffects {
     // Note: we're using isNoiseSuppressorEffectAvailable() instead of
     // NoiseSuppressor.isAvailable() to avoid the expensive getEffects()
     // OS API call.
-    return WebRtcAudioUtils.runningOnJellyBeanOrHigher() && isNoiseSuppressorEffectAvailable();
+    return isNoiseSuppressorEffectAvailable();
   }
 
   // Returns true if the device is blacklisted for HW AEC usage.
@@ -151,12 +151,7 @@ class WebRtcAudioEffects {
     return canUseNoiseSuppressor;
   }
 
-  static WebRtcAudioEffects create() {
-    // Return null if VoIP effects (AEC, AGC and NS) are not supported.
-    if (!WebRtcAudioUtils.runningOnJellyBeanOrHigher()) {
-      Logging.w(TAG, "API level 16 or higher is required!");
-      return null;
-    }
+  public static WebRtcAudioEffects create() {
     return new WebRtcAudioEffects();
   }
 
@@ -207,14 +202,17 @@ class WebRtcAudioEffects {
     assertTrue(aec == null);
     assertTrue(ns == null);
 
-    // Add logging of supported effects but filter out "VoIP effects", i.e.,
-    // AEC, AEC and NS.
-    for (Descriptor d : AudioEffect.queryEffects()) {
-      if (effectTypeIsVoIP(d.type) || DEBUG) {
-        Logging.d(TAG, "name: " + d.name + ", "
-                + "mode: " + d.connectMode + ", "
-                + "implementor: " + d.implementor + ", "
-                + "UUID: " + d.uuid);
+    if (DEBUG) {
+      // Add logging of supported effects but filter out "VoIP effects", i.e.,
+      // AEC, AEC and NS. Avoid calling AudioEffect.queryEffects() unless the
+      // DEBUG flag is set since we have seen crashes in this API.
+      for (Descriptor d : AudioEffect.queryEffects()) {
+        if (effectTypeIsVoIP(d.type)) {
+          Logging.d(TAG, "name: " + d.name + ", "
+                  + "mode: " + d.connectMode + ", "
+                  + "implementor: " + d.implementor + ", "
+                  + "UUID: " + d.uuid);
+        }
       }
     }
 
@@ -294,7 +292,7 @@ class WebRtcAudioEffects {
 
   // Returns the cached copy of the audio effects array, if available, or
   // queries the operating system for the list of effects.
-  private static Descriptor[] getAvailableEffects() {
+  private static @Nullable Descriptor[] getAvailableEffects() {
     if (cachedEffects != null) {
       return cachedEffects;
     }

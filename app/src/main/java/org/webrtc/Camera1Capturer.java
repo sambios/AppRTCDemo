@@ -11,6 +11,8 @@
 package org.webrtc;
 
 import android.content.Context;
+import android.media.MediaRecorder;
+import javax.annotation.Nullable;
 
 public class Camera1Capturer extends CameraCapturer {
   private final boolean captureToTexture;
@@ -25,10 +27,10 @@ public class Camera1Capturer extends CameraCapturer {
   @Override
   protected void createCameraSession(CameraSession.CreateSessionCallback createSessionCallback,
       CameraSession.Events events, Context applicationContext,
-      SurfaceTextureHelper surfaceTextureHelper, String cameraName, int width, int height,
-      int framerate) {
-    Camera1Session.create(createSessionCallback, events, captureToTexture, applicationContext,
-        surfaceTextureHelper, Camera1Enumerator.getCameraIndex(cameraName), width, height,
-        framerate);
+      SurfaceTextureHelper surfaceTextureHelper, @Nullable MediaRecorder mediaRecorder,
+      String cameraName, int width, int height, int framerate) {
+    Camera1Session.create(createSessionCallback, events,
+        captureToTexture || (mediaRecorder != null), applicationContext, surfaceTextureHelper,
+        mediaRecorder, Camera1Enumerator.getCameraIndex(cameraName), width, height, framerate);
   }
 }

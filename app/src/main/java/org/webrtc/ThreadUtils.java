@@ -13,17 +13,17 @@ package org.webrtc;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 public class ThreadUtils {
   /**
    * Utility class to be used for checking that a method is called on the correct thread.
    */
   public static class ThreadChecker {
-    private Thread thread = Thread.currentThread();
+    @Nullable private Thread thread = Thread.currentThread();
 
     public void checkIsOnValidThread() {
       if (thread == null) {
@@ -144,15 +144,6 @@ public class ThreadUtils {
     return result;
   }
 
-  public static void waitUninterruptibly(final Object object) {
-    executeUninterruptibly(new BlockingOperation() {
-      @Override
-      public void run() throws InterruptedException {
-        object.wait();
-      }
-    });
-  }
-
   /**
    * Post |callable| to |handler| and wait for the result.
    */
@@ -211,7 +202,7 @@ public class ThreadUtils {
     });
   }
 
-  private static StackTraceElement[] concatStackTraces(
+  static StackTraceElement[] concatStackTraces(
       StackTraceElement[] inner, StackTraceElement[] outer) {
     final StackTraceElement[] combined = new StackTraceElement[inner.length + outer.length];
     System.arraycopy(inner, 0, combined, 0, inner.length);

@@ -16,26 +16,29 @@ import java.util.EnumSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/** Java wrapper for WebRTC logging. */
+/**
+ * Java wrapper for WebRTC logging. Logging defaults to java.util.logging.Logger, but will switch to
+ * native logging (rtc::LogMessage) if one of the following static functions are called from the
+ * app:
+ * - Logging.enableLogThreads
+ * - Logging.enableLogTimeStamps
+ * - Logging.enableLogToDebugOutput
+ *
+ * Using these APIs requires that the native library is loaded, using
+ * PeerConnectionFactory.initialize.
+ */
 public class Logging {
-  private static final Logger fallbackLogger = Logger.getLogger("org.webrtc.Logging");
-  private static volatile boolean tracingEnabled;
+  private static final Logger fallbackLogger = createFallbackLogger();
   private static volatile boolean loggingEnabled;
-  private static volatile boolean nativeLibLoaded;
 
-  static {
-    try {
-      System.loadLibrary("jingle_peerconnection_so");
-      nativeLibLoaded = true;
-    } catch (UnsatisfiedLinkError t) {
-      // If native logging is unavailable, log to system log.
-      fallbackLogger.setLevel(Level.ALL);
-
-      fallbackLogger.log(Level.WARNING, "Failed to load jingle_peerconnection_so: ", t);
-    }
+  private static Logger createFallbackLogger() {
+    final Logger fallbackLogger = Logger.getLogger("org.webrtc.Logging");
+    fallbackLogger.setLevel(Level.ALL);
+    return fallbackLogger;
   }
 
-  // Keep in sync with webrtc/common_types.h:TraceLevel.
+  // TODO(solenberg): Remove once dependent projects updated.
+  @Deprecated
   public enum TraceLevel {
     TRACE_NONE(0x0000),
     TRACE_STATEINFO(0x0001),
@@ -59,54 +62,27 @@ public class Logging {
     }
   }
 
-  // Keep in sync with webrtc/base/logging.h:LoggingSeverity.
+  // Keep in sync with webrtc/rtc_base/logging.h:LoggingSeverity.
   public enum Severity { LS_SENSITIVE, LS_VERBOSE, LS_INFO, LS_WARNING, LS_ERROR, LS_NONE }
 
   public static void enableLogThreads() {
-    if (!nativeLibLoaded) {
-      fallbackLogger.log(Level.WARNING, "Cannot enable log thread because native lib not loaded.");
-      return;
-    }
     nativeEnableLogThreads();
   }
 
   public static void enableLogTimeStamps() {
-    if (!nativeLibLoaded) {
-      fallbackLogger.log(
-          Level.WARNING, "Cannot enable log timestamps because native lib not loaded.");
-      return;
-    }
     nativeEnableLogTimeStamps();
   }
 
-  // Enable tracing to |path| of messages of |levels|.
-  // On Android, use "logcat:" for |path| to send output there.
-  // Note: this function controls the output of the WEBRTC_TRACE() macros.
-  public static synchronized void enableTracing(String path, EnumSet<TraceLevel> levels) {
-    if (!nativeLibLoaded) {
-      fallbackLogger.log(Level.WARNING, "Cannot enable tracing because native lib not loaded.");
-      return;
-    }
-
-    if (tracingEnabled) {
-      return;
-    }
-    int nativeLevel = 0;
-    for (TraceLevel level : levels) {
-      nativeLevel |= level.level;
-    }
-    nativeEnableTracing(path, nativeLevel);
-    tracingEnabled = true;
-  }
+  // TODO(solenberg): Remove once dependent projects updated.
+  @Deprecated
+  public static void enableTracing(String path, EnumSet<TraceLevel> levels) {}
 
   // Enable diagnostic logging for messages of |severity| to the platform debug
   // output. On Android, the output will be directed to Logcat.
-  // Note: this function starts collecting the output of the LOG() macros.
+  // Note: this function starts collecting the output of the RTC_LOG() macros.
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public static synchronized void enableLogToDebugOutput(Severity severity) {
-    if (!nativeLibLoaded) {
-      fallbackLogger.log(Level.WARNING, "Cannot enable logging because native lib not loaded.");
-      return;
-    }
     nativeEnableLogToDebugOutput(severity.ordinal());
     loggingEnabled = true;
   }
@@ -175,7 +151,6 @@ public class Logging {
     return sw.toString();
   }
 
-  private static native void nativeEnableTracing(String path, int nativeLevels);
   private static native void nativeEnableLogToDebugOutput(int nativeSeverity);
   private static native void nativeEnableLogThreads();
   private static native void nativeEnableLogTimeStamps();

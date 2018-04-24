@@ -23,7 +23,7 @@ import java.util.Scanner;
  */
 public class AsyncHttpURLConnection {
   private static final int HTTP_TIMEOUT_MS = 8000;
-  private static final String HTTP_ORIGIN = "https://appr.tc";
+  private static final String HTTP_ORIGIN = "https://apprtc.e3rtc.com";
   private final String method;
   private final String url;
   private final String message;
@@ -50,12 +50,7 @@ public class AsyncHttpURLConnection {
   }
 
   public void send() {
-    Runnable runHttp = new Runnable() {
-      public void run() {
-        sendHttpMessage();
-      }
-    };
-    new Thread(runHttp).start();
+    new Thread(this ::sendHttpMessage).start();
   }
 
   private void sendHttpMessage() {
@@ -113,7 +108,7 @@ public class AsyncHttpURLConnection {
 
   // Return the contents of an InputStream as a String.
   private static String drainStream(InputStream in) {
-    Scanner s = new Scanner(in).useDelimiter("\\A");
+    Scanner s = new Scanner(in, "UTF-8").useDelimiter("\\A");
     return s.hasNext() ? s.next() : "";
   }
 }

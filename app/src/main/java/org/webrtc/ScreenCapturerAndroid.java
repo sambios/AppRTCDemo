@@ -19,6 +19,7 @@ import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.view.Surface;
+import javax.annotation.Nullable;
 
 /**
  * An implementation of VideoCapturer to capture the screen content as a video stream.
@@ -44,13 +45,13 @@ public class ScreenCapturerAndroid
 
   private int width;
   private int height;
-  private VirtualDisplay virtualDisplay;
-  private SurfaceTextureHelper surfaceTextureHelper;
-  private CapturerObserver capturerObserver;
+  @Nullable private VirtualDisplay virtualDisplay;
+  @Nullable private SurfaceTextureHelper surfaceTextureHelper;
+  @Nullable private CapturerObserver capturerObserver;
   private long numCapturedFrames = 0;
-  private MediaProjection mediaProjection;
+  @Nullable private MediaProjection mediaProjection;
   private boolean isDisposed = false;
-  private MediaProjectionManager mediaProjectionManager;
+  @Nullable private MediaProjectionManager mediaProjectionManager;
 
   /**
    * Constructs a new Screen Capturer.
@@ -74,6 +75,8 @@ public class ScreenCapturerAndroid
   }
 
   @Override
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public synchronized void initialize(final SurfaceTextureHelper surfaceTextureHelper,
       final Context applicationContext, final VideoCapturer.CapturerObserver capturerObserver) {
     checkNotDisposed();
@@ -93,6 +96,8 @@ public class ScreenCapturerAndroid
   }
 
   @Override
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public synchronized void startCapture(
       final int width, final int height, final int ignoredFramerate) {
     checkNotDisposed();
@@ -112,6 +117,8 @@ public class ScreenCapturerAndroid
   }
 
   @Override
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public synchronized void stopCapture() {
     checkNotDisposed();
     ThreadUtils.invokeAtFrontUninterruptibly(surfaceTextureHelper.getHandler(), new Runnable() {
@@ -137,6 +144,8 @@ public class ScreenCapturerAndroid
   }
 
   @Override
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public synchronized void dispose() {
     isDisposed = true;
   }
@@ -150,6 +159,8 @@ public class ScreenCapturerAndroid
    * @param ignoredFramerate ignored
    */
   @Override
+  // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+  @SuppressWarnings("NoSynchronizedMethodCheck")
   public synchronized void changeCaptureFormat(
       final int width, final int height, final int ignoredFramerate) {
     checkNotDisposed();
@@ -185,8 +196,11 @@ public class ScreenCapturerAndroid
   @Override
   public void onTextureFrameAvailable(int oesTextureId, float[] transformMatrix, long timestampNs) {
     numCapturedFrames++;
-    capturerObserver.onTextureFrameCaptured(
-        width, height, oesTextureId, transformMatrix, 0 /* rotation */, timestampNs);
+    final VideoFrame.Buffer buffer = surfaceTextureHelper.createTextureBuffer(
+        width, height, RendererCommon.convertMatrixToAndroidGraphicsMatrix(transformMatrix));
+    final VideoFrame frame = new VideoFrame(buffer, 0 /* rotation */, timestampNs);
+    capturerObserver.onFrameCaptured(frame);
+    frame.release();
   }
 
   @Override
